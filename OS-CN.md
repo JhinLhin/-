@@ -21,16 +21,29 @@
     2. **Storage:**
        - **Stack:** Stores local variables and function calls.
        - **Heap:** Stores Objects and global variables.
-    3. 
-
+  
 - **🟡 Context Switching：CPU/OS 具体保存什么、怎么切**
 
   - "**Context Switching** is the process of storing the state of the currently running process and restoring the state of the next process so execution can be resumed later.
 
+  - ```
+    请求 A
+    ↓
+    线程 1
+    ↓
+    被切走
+    ↓
+    线程 2
+    ↓
+    线程 3
+    ```
+    
+    
+    
     - **记录现场（Save State）：** 记住写到第几页、第几行（保存寄存器 PC, Stack）。
-
+    
       **去倒垃圾（Switch）：** 做另一件事。
-
+    
       **恢复现场（Restore State）：** 回来翻到刚才那一页，继续写。
 
 - **🟡 Process States 生命周期**
@@ -94,7 +107,7 @@
 
 - **✅ Race Condition + 例子**
 
-  - "A **Race Condition** occurs when multiple threads access and modify shared data concurrently. The final outcome depends on the **unpredictable timing** (order of execution) of the threads.
+  - "A **Race Condition** occurs when multiple threads access and **modify shared data concurrently**. The final outcome depends on the **unpredictable timing** (order of execution) of the threads.
 
 - **✅ Critical Section**
 
@@ -165,21 +178,112 @@
 
   - 背诵一句话
 
-    **虚拟内存 = 给每个进程一个“看起来很大、很连续、很私有”的内存幻觉。**
+    > **Virtual Memory =
+    >  让“每个进程都以为自己独占一整块连续的大内存”，
+    >  实际上由操作系统偷偷在后面拼。**
 
-    10岁解释
+    ------
 
-    你住在公寓：你看到的是“自己的房间布局”（虚拟地址），真正房间在大楼哪个位置（物理地址）由物业安排。
+    一、没有虚拟内存的世界（你会马上懂为啥需要它）
 
-    面试口述（60秒）
+    假设只有**物理内存（RAM）**：
 
-    “虚拟内存的价值主要是三点：
-
-    1. **隔离与安全**：进程互相看不到/写不到对方内存；
-    2. **更简单的编程模型**：每个进程看到连续地址空间，不用关心物理内存碎片；
-    3. **扩展容量**：通过 paging + swap，内存不够时把冷数据放磁盘；并支持共享（共享库）和 Copy-on-Write 提升效率。”
-
-    **追问**：为什么比“直接用物理地址”好？→ 安全隔离 + 易用 + 复用共享页。
+    问题来了：
+    
+    - 程序 A 要一块连续内存
+    - 程序 B 也要
+    - 内存碎片一堆
+    - 一个程序越界 = 把别人干崩
+    
+    👉 **根本没法跑现代操作系统**
+    
+    二、虚拟内存到底干了啥？
+    
+    关键角色登场
+    
+    - **Virtual Address（虚拟地址）**：程序看到的
+    - **Physical Address（物理地址）**：真实 RAM
+    - **MMU**：CPU 里的地址翻译器
+    - **Page Table（页表）**：翻译规则
+    
+    ------
+    
+    程序眼里的世界
+    
+    ```
+    每个进程都看到：
+    0x00000000 -------- 0xFFFFFFFF
+    ```
+    
+    - 都从 0 开始
+    - 都觉得“这内存是我的”
+    
+    ------
+    
+    操作系统偷偷干的事
+    
+    ```
+    虚拟地址
+    ↓（MMU）
+    页表查映射
+    ↓
+    物理地址
+    ```
+    
+    👉 **虚拟 ≠ 不存在，而是“间接”**
+    
+    ------
+    
+    三、Page（分页）是虚拟内存的核心机制
+    
+    为什么要分页？
+    
+    - 不用连续内存
+    - 解决碎片
+    - 易于换入换出
+    
+    常见页大小
+    
+    - 4KB（最常见）
+    - 2MB / 1GB（大页）
+    
+    ------
+    
+    内存长这样
+    
+    ```
+    虚拟内存：| P1 | P2 | P3 | P4 |
+    物理内存：| P3 | P1 | P9 | P4 |
+    ```
+    
+    👉 顺序完全可以不一样
+    
+    ------
+    
+    四、那“虚拟内存 = 用硬盘当内存”吗？
+    
+    **不完全对，但也不完全错。**
+    
+    Page Fault（缺页异常）
+    
+    ```
+    访问某个虚拟页
+    ↓
+    不在 RAM
+    ↓
+    CPU trap
+    ↓
+    OS 从磁盘 swap 读
+    ↓
+    再继续执行
+    ```
+    
+    👉 这是 **虚拟内存的“扩容能力”**
+    
+    但重点是：
+    
+    > **虚拟内存的核心价值不是 swap，
+    >  而是“隔离 + 抽象”。**
 
 - **🔴 Page Table：VA→PA** 
 
@@ -208,6 +312,9 @@
 
 - 🔴 Segmentation vs Paging
 
+  Segmentation 是“按意义切内存”，
+  Paging 是“按大小切内存”。
+
   - **Paging (分页):** 切方块吐司。不管你是肉还是菜，统统切成 **4KB** 的小方块。
 
     - *好处：* 整齐，好管理。
@@ -224,13 +331,9 @@
 
     **External (外部 - 缝隙太小塞不进):** 仓库里空地加起来有 100KB，但都是这里 10KB、那里 20KB 的**碎缝隙**。现在来个 50KB 的大箱子，**哪里都塞不进去**。
 
-- 🟡 Swapping / swap space
+- 🟡 Swapping / swap space Swap = Disk 和「物理内存（RAM）」之间的交换
 
   -  把不常用的页临时放到磁盘，给常用页腾内存。
-
-- 🟡 GC 和 OS 内存管理关系
-
-  - OS 管“页/物理内存”，GC 管“对象/堆”；GC 在 OS 给的虚拟地址空间里工作。
 
 - 🟡 OOM 什么时候发生 + OS 怎么处理
 
@@ -413,7 +516,14 @@
 
     - **Cookie**：浏览器存储/自动携带的小数据
     - **Session**：服务器保存的登录状态
-    - **Token**：一串“凭证字符串”，常用于 API 鉴权（可无状态）
+    - **Token**：一串“凭证字符串”，常用于 API 鉴权（可无状态）（cookie里也可以存session）
+
+  - Token 就是：
+     不用再去服务器查 session，
+     光看这串字符串本身，服务器就能知道你是谁、有没有权限。
+
+  - Token 取代的是「session 这种服务器存状态的方式」，
+     不是取代 cookie 这种「客户端自动携带数据的机制」。
 
     **面试高分说法（最常用组合）：**
 
