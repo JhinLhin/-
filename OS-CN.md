@@ -24,6 +24,9 @@
   
 - **🟡 Context Switching：CPU/OS 具体保存什么、怎么切**
 
+  - 👉 **context switch（上下文切换）既可以发生在进程之间，也可以发生在线程之间。**
+     但在实际讨论中，**更多时候指的是线程切换**。
+
   - "**Context Switching** is the process of storing the state of the currently running process and restoring the state of the next process so execution can be resumed later.
 
   - ```
@@ -37,13 +40,11 @@
     ↓
     线程 3
     ```
-    
-    
-    
+
     - **记录现场（Save State）：** 记住写到第几页、第几行（保存寄存器 PC, Stack）。
-    
+
       **去倒垃圾（Switch）：** 做另一件事。
-    
+
       **恢复现场（Restore State）：** 回来翻到刚才那一页，继续写。
 
 - **🟡 Process States 生命周期**
@@ -69,12 +70,25 @@
 
   - "**User Space** is where standard applications execute (like a web browser). **Kernel Space** is reserved for the OS kernel and drivers to access hardware directly.
 
-    The key difference is **privilege**:
+  - **Context switch 的核心是：**
 
+    > CPU 从一个“执行实体”切换到另一个
+
+    而 user → kernel：
+    
+    - ❌ 没换线程
+    - ❌ 没换进程
+    - ✅ 只是权限级别变了
+    
+    所以更准确的叫法是：
+     👉 **mode switch（特权级切换）*
+    
+    The key difference is **privilege**:
+    
     - **User Space** operates in **Ring 3** with restricted access to memory and hardware.
     - **Kernel Space** operates in **Ring 0** with full access to all resources.
-
-    To switch from User to Kernel space (e.g., to read a file), the system must perform a **Context Switch** triggered by a **System Call** or **Interrupt**."
+    
+    To switch from User to Kernel space (e.g., to read a file), the system must perform a **Mode Switch** triggered by a **System Call** or **Interrupt**."
 
 - 🟡 **System Calls：trap/interrupt 机制（讲到 trap 就偏底层）**
 
@@ -87,20 +101,50 @@
     3. The OS executes the requested task (like `read()` or `fork()`).
     4. Finally, it returns the result and switches back to **User Mode**."
 
-- **🟡 User Thread vs Kernel Thread 区别（偏 OS 实现）**
+- **🟡 User Thread vs Kernel Thread 区别**
 
   - **User Thread (用户线程):** 是**你脑子里的分身**。
 
-    - 你自己决定先做饭还是先洗衣服（由**User Library**管理）。
-    - **OS 不知道**你有分身，OS 只看到你一个人。
-    - **缺点：** 如果你切菜切到手晕倒了（Block），你脑子里所有计划都停了，因为 OS 以为整个你都挂了。
-    - **优点：** 切换极快，不需要麻烦经理（OS）。
-
+    - **线程的创建 / 切换 / 调度都在 user space 完成**
+    
+      特点
+    
+      - 内核 **不知道** 这些线程的存在
+      - OS 眼里：**只有一个进程**
+      - 线程调度由 **用户态 runtime / 库** 做
+    
+      优点
+    
+      ✅ **切换快**（不进内核）
+       ✅ **创建 / 销毁成本低**
+       ✅ 可自定义调度策略
+    
+      致命缺点
+    
+      ❌ **一个线程阻塞，整个进程阻塞**（blocking syscall）
+       ❌ **无法利用多核 CPU**（内核只调度到一个执行流）
+       ❌ 和系统调用 / IO 天然不友好
+    
     **Kernel Thread (内核线程):** 是**真正雇佣的多个工人**。
-
-    - **OS 知道**每一个工人的存在（由**OS Kernel**管理）。
-    - **优点：** 一个工人晕倒了，OS 会让其他工人继续干活（True Parallelism）。
-    - **缺点：** 管理成本高，调度慢。
+    
+    - **线程由 OS 内核直接管理和调度**
+    
+      特点
+    
+      - 内核 **完全感知**
+      - 每个线程都是调度实体
+      - 可以跑在 **不同 CPU 核心**
+    
+      优点
+    
+      ✅ **真正并行（多核）**
+       ✅ 一个线程阻塞 **不影响其他线程**
+       ✅ IO / syscall 天然支持
+    
+      缺点
+    
+      ❌ 创建 / 切换 **开销更大**
+       ❌ 上下文切换涉及内核
 
 
 ### II. Concurrency & Synchronization
@@ -156,7 +200,7 @@
 
   - **Visibility (可见性):** CPU 都有自己的**小金库 (Cache)**。CPU A 改了数据，只改在自己的 Cache 里，没写回主内存。CPU B 去主内存读，读到了旧数据。CPU B “看不见” A 的修改。
 
-    **Volatile (Java):** 强制要求：“别藏在 Cache 里，直接读写主内存！”保证大家看到的都是最新的。
+    **Volatile (Java):** 强制要求：“别藏在 Cache 里，直接读写主内存！”保证所有threads看到的都是最新的。
 
 - **🟡 Livelock vs Deadlock**
 
@@ -164,7 +208,7 @@
 
     **Livelock:** 两人在走廊相遇，你想往左让，他也往左让；你往右，他也往右。**两人都在疯狂动，但谁也过不去**。 (State is changing, but no progress).
 
-- **✅ 读写锁适用场景（读多写少）**
+- **✅ Read and write lock适用场景（读多写少）**
 
   - **👶 核心概念 (ELI5)** **公告栏原则**。
     - 大家都可以**同时看**（Read）。
@@ -184,68 +228,94 @@
 
     ------
 
-    一、没有虚拟内存的世界（你会马上懂为啥需要它）
+    **1) 物理内存 physical memory 是什么？**
 
-    假设只有**物理内存（RAM）**：
-
-    问题来了：
+    就是你机器上真正的 RAM（内存条）。
+     它可以想成一排连续编号的格子（0…N），CPU 最终读写的就是这些真实格子。
     
-    - 程序 A 要一块连续内存
-    - 程序 B 也要
-    - 内存碎片一堆
-    - 一个程序越界 = 把别人干崩
+    但现实里：
     
-    👉 **根本没法跑现代操作系统**
+    - RAM 资源有限
+    - 同时跑很多进程
+    - 每个进程都“以为”自己有一大段连续内存
     
-    二、虚拟内存到底干了啥？
+    如果让每个程序直接用物理地址：
     
-    关键角色登场
-    
-    - **Virtual Address（虚拟地址）**：程序看到的
-    - **Physical Address（物理地址）**：真实 RAM
-    - **MMU**：CPU 里的地址翻译器
-    - **Page Table（页表）**：翻译规则
+    - 程序 A 很容易读到/写到程序 B 的数据（安全灾难）
+    - 内存碎片会让“连续大块内存”很难找（管理灾难）
+    - 进程搬家（内存整理）会导致地址全变，程序会崩（工程灾难）
     
     ------
     
-    程序眼里的世界
+    **2) 虚拟内存 virtual memory 是什么？**
     
-    ```
-    每个进程都看到：
-    0x00000000 -------- 0xFFFFFFFF
-    ```
+    **虚拟内存是“每个进程看到的一套假地址空间”。**
     
-    - 都从 0 开始
-    - 都觉得“这内存是我的”
+    关键点：
     
-    ------
+    - 每个进程都觉得自己从地址 0 开始，有一大片连续内存
+    - 这套地址**不等于**真实 RAM 地址
+    - CPU 发出的地址先叫 **虚拟地址**，需要翻译成 **物理地址** 才能访问 RAM
     
-    操作系统偷偷干的事
+    你可以把它当作：
     
-    ```
-    虚拟地址
-    ↓（MMU）
-    页表查映射
-    ↓
-    物理地址
-    ```
-    
-    👉 **虚拟 ≠ 不存在，而是“间接”**
+    > 操作系统给每个进程发了一张“地图”，地图上的坐标（虚拟地址）不是真实世界坐标（物理地址），但 OS 保证能把地图坐标翻译到真实坐标。
     
     ------
     
-    三、Page（分页）是虚拟内存的核心机制
+    **3) 为什么要 VPN 和 PFN（以及 offset）？**
     
-    为什么要分页？
+    因为“按每个字节做映射”太贵，所以把内存切成固定大小的块来管理。
     
-    - 不用连续内存
-    - 解决碎片
-    - 易于换入换出
+    **分块的两个名字**
     
-    常见页大小
+    - 虚拟地址空间里的块：**virtual page（虚拟页）**
+    - 物理内存里的块：**physical frame（物理页框/页帧）**
     
-    - 4KB（最常见）
-    - 2MB / 1GB（大页）
+    它们**大小相同**（比如都是 4KB）。
+    
+    **地址拆分**
+    
+    假设 page size = 4KB = 2¹²，那么任意地址都能拆成：
+    
+    - **offset（页内偏移）**：低 12 位（0~4095），表示在这一页里的第几个字节
+    - 剩下高位：页号
+      - 虚拟页号叫 **VPN (Virtual Page Number)**
+      - 物理页框号叫 **PFN (Physical Frame Number)**
+    
+    所以：
+    
+    ```
+    虚拟地址 VA = [ VPN | offset ]
+    物理地址 PA = [ PFN | offset ]
+    ```
+    
+    **page table 做的事就是：把 VPN 翻译成 PFN。**
+     offset 不变，直接拼回去。
+    
+    ------
+    
+    **4) mapping 是“多大 map 到多大”？**
+    
+    **粒度就是 1 页（page size）**。
+    
+    > page table 映射的是：1 个虚拟页（比如 4KB） → 1 个物理页框（也是 4KB）
+    
+    不是 1 byte→1 byte，也不是整个进程一次性映射。
+    
+    **举个特别直观的例子（4KB 页）**
+    
+    - 虚拟页 #5 表示虚拟地址范围：
+       `5*4096 ~ 5*4096+4095`
+    - page table 说：虚拟页 #5 → 物理页框 #123
+    
+    那意味着：
+    
+    - 虚拟地址 `5*4096 + x`（x 在 0~4095）
+       会变成
+    - 物理地址 `123*4096 + x`
+    
+    你看：**映射的单位就是整整一页 4KB**，页内偏移 x 原样带过去。
     
     ------
     
@@ -295,7 +365,7 @@
 
 - 🟡 Page Fault：
 
-  - A Page Fault occurs when a program accesses a page not currently in physical memory (RAM). Steps:
+  - **A Page Fault occurs when a program accesses a page not currently in physical memory (RAM).** Steps:
     1. **Trap:** CPU raises an interrupt to the OS.
     2. **Context Switch:** OS puts the process in 'Waiting' state.
     3. **Disk I/O:** OS finds the page in Swap Space and reads it into a free frame in RAM.
@@ -515,20 +585,98 @@
   - **背诵一句话：**
 
     - **Cookie**：浏览器存储/自动携带的小数据
-    - **Session**：服务器保存的登录状态
+    - **Session**：不是用户的所有数据，只是「当前会话需要的、临时性的、和登录状态相关的数据」。
     - **Token**：一串“凭证字符串”，常用于 API 鉴权（可无状态）（cookie里也可以存session）
 
-  - Token 就是：
-     不用再去服务器查 session，
-     光看这串字符串本身，服务器就能知道你是谁、有没有权限。
+  - **用户访问流程（经典）**
 
-  - Token 取代的是「session 这种服务器存状态的方式」，
-     不是取代 cookie 这种「客户端自动携带数据的机制」。
+     ```
+     1. 从 cookie 读 session_id
+     2. 用 session_id 找 session
+     3. 从 session 拿 user_id
+     4. 用 user_id 查数据库（按需）
+     ```
 
-    **面试高分说法（最常用组合）：**
+     📌 重点：
 
-    - 方案 A（传统 Web）：Cookie 存 session id → 服务器查 Session（有状态）
-    - 方案 B（现代 API）：客户端带 Token（如 JWT）→ 服务端验证签名/权限（可无状态）
+     - **cookie 不存用户数据**
+     - **session 不存完整用户数据**
+     - **数据库才是唯一真相源**
+
+     ⚠️ 正确做法：
+
+     - session：只存 `user_id`
+     - 页面数据：**实时从数据库查**
+
+     
+
+     📌 原则：
+
+     - **只对这次会话有意义**
+     - session 过期就没关系
+
+     ------
+
+     **7️⃣ 用户关闭浏览器 / session 过期**
+
+     ```
+     浏览器：
+       cookie 失效 or 被清除
+     
+     服务器：
+       session 删除
+     
+     数据库：
+       数据还在（完全不受影响）
+     ```
+
+     👉 结果：
+
+     - 用户被登出
+     - 需要重新登录
+     - **用户数据不丢**
+
+     ------
+
+     **8️⃣ 用户再次访问**
+
+     ```
+     cookie：
+       没有 session_id
+     
+     服务器：
+       当成新会话
+     
+     数据库：
+       用户数据依旧完整
+     ```
+
+  - **Token 就是：**
+
+  - **数据库**：用户所有永久数据（不变）
+
+  - **token（access token）**：客户端带着的“可验证凭证”（你是谁/权限/过期时间）
+
+  - **cookie（可选）**：只是 token 的存放方式之一（也可以存在内存/localStorage）
+
+  - **session（可选/弱化）**：不一定需要；但“刷新 token / 登出黑名单”等场景可能会引入服务端状态
+
+> 关键差异：
+>  **session 模式：服务器记住你是谁**
+>  **token 模式：客户端随请求带“我是谁”的证明，服务器验证即可**
+
+- 不用再去服务器查 session，
+   光看这串字符串本身，服务器就能知道你是谁、有没有权限。
+
+   1. 登录成功 → 发 **access_token(短)** + **refresh_token(长)**
+   2. 请求 API → 带 access_token → 服务器验签/过期/权限
+   3. access 过期 → 用 refresh 换新 access
+   4. 登出 → 撤销 refresh（必要时配合版本号/黑名单）
+
+   **面试高分说法（最常用组合）：**
+
+   - 方案 A（传统 Web）：Cookie 存 session id → 服务器查 Session（有状态）
+   - 方案 B（现代 API）：客户端带 Token（如 JWT）→ 服务端验证签名/权限（可无状态）
 
 - 🟡 LocalStorage vs SessionStorage
 
