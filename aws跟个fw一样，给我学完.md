@@ -1,3 +1,148 @@
+# IAM: Identity Access & Management (IAM)
+
+这一章 CCP 主要考你两件事：
+
+1. **IAM 的三件套：Users / Groups / Roles / Policies 怎么配**
+2. **安全最佳实践：MFA、最小权限、不要把 Access Key 写进代码**
+
+```json
+AWS Account（账户ID唯一）
+ ├── Root User（根用户，只有1个）
+ ├── IAM Users（可以创建很多个）
+ ├── IAM Groups（用户组）
+ └── IAM Roles（角色）
+```
+
+------
+
+## 1) 一句话定义（必背）
+
+- **IAM**：控制“谁（identity）能对哪些 AWS 资源做什么（permissions）”。
+- **User**：真人账号（Console 密码 + 可选 Access Key）。
+- **Group**：用户集合，用来批量分配权限。
+- **Role**：**临时权限身份**，通常给 **AWS 服务/应用**去“扮演”，避免长期密钥。
+- **Policy**：权限规则（JSON），定义 Allow/Deny、Action、Resource。
+
+------
+
+## 2) IAM 权限模型（考试最爱）
+
+### 2.1 Policy 是怎么决定你能不能做事的？
+
+- IAM 会把你身上的所有 policy 合起来算：
+  - 直接挂在 **User** 上
+  - 来自 **Group** 的
+  - 通过 **Assume Role** 得到的
+- **记住一个铁律（CCP 常考）：显式 Deny > Allow**
+  （只要任何一条明确 Deny，你就被拒绝）
+
+### 2.2 Policy 三种（认识即可）
+
+- **AWS-managed**：AWS 给的通用权限包
+- **Customer-managed**：你自己可复用维护的
+- **Inline**：只绑在某一个 user/group/role 上（不可复用）
+
+------
+
+## 3) IAM Policy 结构（要能看懂题目）
+
+必记字段：
+
+- **Effect**：Allow / Deny
+- **Action**：允许做哪些 API（如 `s3:ListBucket`）
+- **Resource**：作用到哪个资源 ARN（如某个 bucket）
+- **Statement**：可多个
+
+> CCP 不会让你手写复杂 JSON，但会让你识别 “Action/Resource/Allow”。
+
+------
+
+## 4) Users vs Groups vs Roles（最高频对比）
+
+| 概念  | 给谁用         | 关键点                          | 题干关键词                                   |
+| ----- | -------------- | ------------------------------- | -------------------------------------------- |
+| User  | 真实人         | 长期身份                        | “employee / person”                          |
+| Group | 一群人         | 权限批量管理                    | “dev team / QA team”                         |
+| Role  | 服务/应用/临时 | **临时凭证，不用存 access key** | “EC2 needs access S3” “Lambda call DynamoDB” |
+
+✅ **超高频秒选**：
+
+- “让 EC2 访问 S3，别在机器上放 access keys” → **IAM Role（Instance Profile）**
+- “Lambda 需要访问其他服务” → **Lambda Execution Role**
+
+------
+
+## 5) MFA（CCP 必考）
+
+### 一句话
+
+> MFA = 密码之外再加一层（你有的设备生成一次性码）
+
+- 强烈建议：**Root account 必开 MFA**
+- 价值：密码泄露也不容易被盗号
+
+### MFA 设备（认识即可）
+
+- **Virtual MFA**（手机 App：Google Authenticator/Authy）
+- **Hardware MFA**（实体 token）
+- **U2F 安全钥匙**（USB Key）
+
+------
+
+## 6) Password Policy（常考“安全控制”）
+
+能设定：
+
+- 最小长度
+- 复杂度（大小写/数字/特殊字符）
+- 禁止重复
+- 过期轮换
+- 配合强制 MFA（题目若问最佳实践 → MFA + 强密码 + 轮换）
+
+------
+
+## 7) IAM 安全审计工具（会选就行）
+
+- **Credential Report**：全账号所有 IAM 用户的凭证状态（是否有密码/Access Key、是否启用等）
+- **Access Advisor**：某用户/角色“哪些服务权限最近用过”（帮你删多余权限）
+- **Policy Simulator**：模拟这套 policy 到底 allow/deny 什么（上线前验证）
+
+------
+
+## 8) Shared Responsibility（IAM 版）
+
+- **AWS 负责**：IAM 服务本身的可用性与底层安全、提供托管策略等
+- **你负责**：用户/组/角色/策略配置是否正确、最小权限、密钥保护、MFA、定期审计
+
+------
+
+## 9) 用户访问 AWS 的方式（CCP 常考“哪种工具”）
+
+| 方式           | 用途                         | 关键词                   |
+| -------------- | ---------------------------- | ------------------------ |
+| **Console**    | 网页操作                     | “UI / beginners”         |
+| **CLI**        | 命令行自动化，直接调 AWS API | “scripts / automation”   |
+| **SDK**        | 程序里调用 AWS（boto3 等）   | “in code / application”  |
+| CloudFormation | IaC（用模板建资源）          | “infrastructure as code” |
+
+### CLI vs SDK（秒选）
+
+- “终端里敲命令/写脚本” → **CLI**
+- “用 Python/Java 在应用里调用 S3” → **SDK**
+
+------
+
+## 10) 本章 10 分钟速记卡（直接背）
+
+- IAM = 控制访问：谁能对哪些资源做什么
+- Users（人）/ Groups（批量权限）/ Roles（服务临时身份）/ Policies（JSON 权限）
+- **显式 Deny > Allow**
+- 角色给 EC2/Lambda 用，避免把 access key 写进代码
+- MFA：Root 必开
+- 审计：Credential Report / Access Advisor / Policy Simulator
+- 访问方式：Console / CLI / SDK / CloudFormation
+- Shared Responsibility：AWS 管 IAM 服务；你管权限配置与密钥安全
+
 # EC2：Virtual Machines
 
 ## 1) 本章你必须会的“一句话定义”
@@ -277,7 +422,7 @@
 
 ------
 
-## 6) FSx（“我需要特定文件系统”才用它）
+## 6) FS(File System)x（“我需要特定文件系统”才用它）
 
 ### FSx for Windows File Server
 
@@ -486,6 +631,215 @@
 
 ------
 
+# Amazon S3
+
+这章在 CCP 的考法非常固定：
+
+> **S3 是对象存储（Object Storage）**，核心考 **Bucket/Object/安全/版本/复制/存储层级/静态网站**，外加 **Snow Family + Storage Gateway（迁移与混合云）**。
+
+------
+
+## 1) 一句话定义（必背）
+
+- **S3**：AWS 的**对象存储**（Object Storage），把文件作为 **Object** 存在 **Bucket** 里。
+- **Bucket**：装对象的容器；**名字全局唯一**；创建在某个 **Region**。
+- **Object**：文件本体 + key（路径名）+ metadata/tags +（可选）version id。
+- **Key**：对象的“完整路径名”（S3 没真目录，只有 key 里有 `/`）。
+
+------
+
+## 2) 必背关键词清单（考试覆盖）
+
+- Buckets：**global unique name**、**region-level**
+- Objects：**key=full path**、最大 **5TB**、>**5GB** 用 **multipart upload**
+- Security：**IAM policy（user-based）** + **Bucket policy（resource-based）** +（少见）ACL
+  **explicit DENY wins**
+- Block Public Access：默认应开（防数据泄露）
+- Static website hosting：403 → bucket policy 没允许 public read
+- Versioning：bucket-level；旧对象可能有 **null version**；suspend 不会删旧版本
+- Access logs：记录所有访问（允许/拒绝都记）
+- Replication：**CRR/SRR**，**必须 source+dest 都开启 versioning**，异步
+- Storage classes：Standard / Standard-IA / One Zone-IA / Intelligent-Tiering / Glacier Instant / Glacier Flexible / Deep Archive
+- Durability：**11 9s（99.999999999%）**（所有 class 都非常耐久）
+  Availability：随 class 不同
+- Object Lock / Glacier Vault Lock：**WORM**
+- Snow family：网络传 >1 周 → 用 Snow；Snowcone/ Snowball / Snowmobile
+- Storage Gateway：把 on-prem 和 S3 桥接（混合云存储）
+
+------
+
+## 3) 超高频“秒选表”（看到题干就选）
+
+| 题干关键词                          | 秒选                                                         |
+| ----------------------------------- | ------------------------------------------------------------ |
+| “存文件/备份/静态资源/数据湖”       | **S3**                                                       |
+| “对象最大 5TB / 大文件上传”         | **Multipart upload（>5GB）**                                 |
+| “禁止桶变公网”                      | **Block Public Access 开启**                                 |
+| “跨账号访问桶”                      | **Bucket Policy（resource-based）**                          |
+| “谁能访问 S3？”                     | **IAM policy + Bucket policy，且显式 Deny 优先**             |
+| “静态网站托管/网站 URL”             | **S3 Static Website Hosting**                                |
+| “403 Forbidden 访问网站”            | **Bucket policy 没 public read**（或 Block Public Access 阻挡） |
+| “防误删/可回滚”                     | **Versioning**                                               |
+| “跨区域复制容灾/合规/低延迟”        | **CRR**                                                      |
+| “同区域复制（日志聚合/多账号环境）” | **SRR**                                                      |
+| “很少访问但要快速取回”              | **Standard-IA / One Zone-IA**                                |
+| “自动分层省心”                      | **Intelligent-Tiering**                                      |
+| “归档/冷数据/取回慢且便宜”          | **Glacier / Deep Archive**                                   |
+| “写一次读多次，合规不可删改”        | **S3 Object Lock / Glacier Vault Lock（WORM）**              |
+| “数据太大，网络传超过一周”          | **AWS Snow Family**                                          |
+| “on-prem 也想像本地盘一样用 S3”     | **Storage Gateway**                                          |
+
+------
+
+## 4) S3 基础：Buckets & Objects（CCP 经典概念题）
+
+### 4.1 Bucket（桶）
+
+- **名字全局唯一**（所有账号/所有 Region）
+- **创建在某个 Region**（S3 看起来像全局服务，但 bucket 是 region-level）
+- 命名规则（了解级）：小写、无下划线、3-63、不能像 IP
+
+### 4.2 Object（对象）
+
+- **Key = 完整路径名**：`s3://bucket/folder1/folder2/file`
+- S3 没目录，只有 key 里带 `/`（控制台“假装有文件夹”）
+- **最大对象 5TB**
+- **>5GB 必须 multipart upload**
+- 可有：metadata、tags（最多 10）、version id（若开 versioning）
+
+------
+
+## 5) S3 Security（CCP 高频）
+
+### 5.1 两种授权模型（必背）
+
+- **User-based**：IAM Policy（给 user/group/role）
+- **Resource-based**：Bucket Policy（最常考），ACL（较少考）
+
+✅ 判断能不能访问（考试原句常出现）：
+
+> **允许 =（IAM 允许 或 Bucket policy 允许）并且没有显式 DENY**
+
+### 5.2 Block Public Access（防数据泄露必考点）
+
+- 这套开关就是为了防公司数据“不小心公开”
+- 如果 bucket 不该公网访问，**保持开启**
+- 可在 account level 统一设置
+
+------
+
+### 6) S3 Static Website Hosting（必考小坑）
+
+- S3 能托管**静态网站**
+- 典型考点：**403 Forbidden**
+  - 不是“网站坏了”，而是 **bucket policy 没允许 public read**（或 Block Public Access 阻挡）
+
+------
+
+### 7) Versioning（非常爱考）
+
+- **bucket-level 开启**
+- 同 key 覆盖会产生新版本
+- 开启前已有对象：版本号可能是 **null**
+- **Suspend versioning 不会删除旧版本**
+- 价值：防误删、易回滚
+
+------
+
+### 8) Access Logs（审计）
+
+- 记录对 bucket 的所有请求（包括被拒绝的）
+- 输出到另一个 S3 bucket
+- 用于排障/审计/安全分析
+
+------
+
+### 9) Replication（CRR & SRR）
+
+**必背前提：source 与 destination 都要开启 Versioning**
+
+- **CRR（Cross-Region）**：合规/容灾/跨区域低延迟/跨账号
+- **SRR（Same-Region）**：日志聚合、生产/测试账号同步等
+- **异步复制**，需配置 IAM 权限
+
+------
+
+## 10) Storage Classes（最常考“选哪个最省钱还满足需求”）
+
+### 10.1 Durability vs Availability（CCP 喜欢问差别）
+
+- **Durability（耐久）**：数据不丢的概率 → S3 给你 **11 个 9**（所有 class 都很高）
+- **Availability（可用）**：一年里服务可用多久 → 不同 class 不同（Standard 通常最高）
+
+### 10.2 记忆法：按访问频率 + 取回速度 + 成本
+
+- **S3 Standard**：常访问，低延迟高吞吐
+- **Standard-IA**：少访问但要快速取回（备份/DR）
+- **One Zone-IA**：更便宜但只在单 AZ（AZ 挂了会丢）→ 适合可重建/第二份备份
+- **Glacier Instant Retrieval**：归档但要毫秒取回（偶尔拿一次）
+- **Glacier Flexible Retrieval**：取回分钟~小时（更便宜）
+- **Deep Archive**：最便宜，取回最慢（小时级~更久），长期保存
+- **Intelligent-Tiering**：自动分层（付少量监控费），适合访问模式不确定；**无 retrieval fee（按你的笔记）**
+
+✅ 秒选口诀：
+
+- “经常访问”→ Standard
+- “很少访问但要立刻取”→ Standard-IA / Glacier Instant
+- “极少访问、能等、超便宜”→ Glacier Flexible / Deep Archive
+- “访问模式不确定”→ Intelligent-Tiering
+- “单 AZ 更便宜、可丢/可重建”→ One Zone-IA
+
+------
+
+## 11) Object Lock & Glacier Vault Lock（合规：WORM）
+
+- **S3 Object Lock**：对象版本在指定时间内**不能删/不能改**（WORM）
+- **Glacier Vault Lock**：把 policy 锁死，之后不能随便改（合规保留）
+
+------
+
+## 12) Snow Family（离线迁移 + 边缘计算）
+
+核心考试规则：
+
+> **如果网络传输要超过 1 周 → 考虑 Snow 家族**
+
+- **Snowcone**：最小最便携（~8TB），可边缘计算/传输
+- **Snowball Edge**：TB~PB 级迁移
+- **Snowmobile**：超大规模（PB~EB），>10PB 更适合
+
+**流程（题目可能问顺序）**
+
+1. 下单设备
+2. 安装客户端/OpsHub
+3. 拷数据到设备
+4. 寄回 AWS
+5. 数据进 S3
+6. 设备擦除
+
+------
+
+## 13) Hybrid Storage：Storage Gateway（混合云）
+
+> Storage Gateway = on-prem 与 S3 的桥梁
+> 用于：备份/恢复/灾备/分层存储
+> （类型不要求你记细）
+
+------
+
+## 本章 10 分钟速记卡（背完就能做题）
+
+- S3 = 对象存储；Bucket 全局唯一且在 Region；Object key=完整路径；最大 5TB，>5GB 用 multipart
+- 安全：IAM policy + Bucket policy；显式 Deny 优先；Block Public Access 防泄露
+- 静态网站：403=没有 public read（或被 Block Public Access 挡）
+- Versioning：防误删/回滚；null version；suspend 不删旧版本
+- Replication：CRR/SRR 必须两边开 versioning，异步
+- Storage class：Standard（热）/ IA（温）/ One Zone-IA（更便宜但单AZ）/ Intelligent（自动）/ Glacier（冷）/ Deep Archive（最冷最慢）
+- WORM：Object Lock / Vault Lock
+- 数据太大网络传>1周：Snow；混合云：Storage Gateway
+
+------
+
 # Other Compute
 
 这一章本质在考你：
@@ -614,6 +968,10 @@ Docker 是“应用级隔离”，VM 是“操作系统级隔离”。
 >
 > 这是 ECS 调度的**原子单位**（Atomic Unit）。这是初学者最容易混淆的地方。
 >
+> `① 一个 Task 内的所有容器`
+>
+> `✔ 一定在同一台机器上运行（同一个 EC2 或同一个 Fargate 节点）`
+>
 > - **技术定义：** Task 是一个**包装盒**。ECS 不直接跑 Container，它跑的是 Task。
 >
 >   - **1:1 关系：** 一个 Task 里面通常包含 **1个** 核心 Container（比如你的 Web 服务）。
@@ -628,15 +986,54 @@ Docker 是“应用级隔离”，VM 是“操作系统级隔离”。
 >
 > 这是**管理层**。它负责确保你的 Task 按照预期运行。
 >
+> `Service 的多个 Task 副本：`
+>
+> - `可能分布在不同 EC2`
+> - `也可能多个挤在同一台（取决于资源和调度策略）`
+>
 > - **技术定义：** Service 负责**编排**和**维护** Task 的状态。
 >
 >   - **数量控制：** 你告诉 Service：“我要 3 个 Task 副本”。Service 就会确保永远有 3 个 Task 在运行。
 >   - **自我修复：** 如果其中一个 Task 崩溃了（挂了），Service 会立刻发现，并启动一个新的 Task 来补位。
 >   - **负载均衡：** Service 通常会把 Task 挂载到 Load Balancer (ELB) 上，让流量能找到这些 Task。
+>   - `ECS Service 中 Task 数量 >1 时，本质就是同一个任务模板的多实例副本，用于扩容和容错。`
 >
 > - **餐厅类比：**
 >
 >   > **Service = 后厨经理**。 经理不炒菜，但他负责盯着灶台。 他的指令是：“今晚生意好，必须保证有 **5 个灶台（Task）** 同时开火。” 如果 3 号灶台的厨师晕倒了（Task 挂了），经理会立刻叫一个新的厨师团队来占领一个新的灶台（启动新 Task），确保总数还是 5 个。
+>
+> **✔ 一句话理解**
+>
+> > **Cluster = 一组可供 ECS 调度 Task 的计算资源集合**
+> >
+> > 不同 **ECS Cluster** 的区别，本质上是：**它们是不同的“调度域 + 管理边界”**。Cluster 之间不会共享任务/调度/容量；你把它当成“两个独立的池子”就对了。
+> >
+> > **一个 Service 只能在一个 Cluster 里跑**
+> >
+> > **一个 Task 只能属于一个 Cluster**
+> >
+> > **不同 ECS Cluster 默认不会共享同一台 EC2。**
+> >  一台 EC2 实例同一时间只能注册到 **一个 Cluster**。
+>
+> ------
+>
+> **✔ 为什么需要 Cluster**
+>
+> 因为 ECS 需要一个“地方”来放 Task，所以必须先定义资源池：
+>
+> Cluster 可以包含：
+>
+> - 多台 **EC2 实例**（EC2 launch type）
+> - 或 **Fargate 计算容量**（无服务器模式）
+> - 或两者混合
+>
+> ECS 调度器会在 Cluster 内找合适资源来放 Task。
+>
+> ✅ **同一个 Task 里的所有 container 一定在同一台宿主机/同一个运行环境里**，因为它们共享：
+>
+> - 网络命名空间（awsvpc 里共享同一个 ENI/IP）
+> - 本地存储卷（task volume）
+> - 生命周期（一起起、一起停）
 
 #### 两种运行模式（高频必考）
 
@@ -1054,4 +1451,377 @@ Docker 是“应用级隔离”，VM 是“操作系统级隔离”。
 
 ------
 
-如果你想把这章练到“看到题干秒选”，我可以给你出 **12 道 CCP 高频选择题**（每题都标出关键词和陷阱：CloudWatch vs CloudTrail vs X-Ray vs EventBridge）。
+# VPC
+
+这章 CCP 的考法很固定：
+
+> **公有子网怎么上网？私有子网怎么出网？谁当防火墙？怎么连 VPC/连本地？怎么私网访问 S3？**
+
+你只要能做到“题干关键词 → 秒选组件”，就稳。
+
+------
+
+## 1) 一句话定义（必背）
+
+- **VPC**：你在 AWS 里的“私有网络”（**Region 级**资源）。
+- **Subnet**：VPC 里的网段分区（**AZ 级**资源）。
+- **Public Subnet**：能直接连互联网（通常 route table 有到 IGW 的路由）。
+- **Private Subnet**：不能被互联网直接访问（通常无到 IGW 的路由）。
+- **Route Table**：决定“去哪里走”的路由规则（子网关联）。
+
+------
+
+## 2) 超高频“秒选表”（题干一出现就选）
+
+| 题干关键词                                             | 秒选                              |
+| ------------------------------------------------------ | --------------------------------- |
+| “EC2 需要公网访问/对外提供网站”                        | **Public Subnet + IGW**           |
+| “私有子网 EC2 需要下载补丁/访问外网，但不允许外网进来” | **NAT Gateway**                   |
+| “VPC 连接互联网”                                       | **Internet Gateway (IGW)**        |
+| “只允许出站，不允许入站”                               | **NAT（私网出网）**               |
+| “子网级防火墙，带 ALLOW + DENY”                        | **NACL**                          |
+| “实例/ENI 级防火墙，只能 ALLOW，且 stateful”           | **Security Group**                |
+| “排查网络连不通，要看流量记录”                         | **VPC Flow Logs**                 |
+| “两套 VPC 私网互通（不走公网）”                        | **VPC Peering（CIDR 不能重叠）**  |
+| “私网访问 S3/DynamoDB，不走公网”                       | **VPC Endpoint Gateway**          |
+| “私网访问其他 AWS 服务（如 SSM、CloudWatch…）”         | **VPC Endpoint Interface**        |
+| “本地机房到 AWS 加密通道（走公网）”                    | **Site-to-Site VPN（CGW + VGW）** |
+| “本地到 AWS 专线（更稳定更快）”                        | **Direct Connect**                |
+| “很多 VPC + 本地网络要统一互联（hub-and-spoke）”       | **Transit Gateway**               |
+
+------
+
+## 3) IGW vs NAT（最爱考的对比）
+
+### Internet Gateway（IGW）
+
+- **作用**：让 VPC 能与互联网通信
+- **典型场景**：Public subnet 里的资源要被公网访问（Web server）
+
+### NAT Gateway
+
+- **作用**：让 **Private subnet** 里的实例**只出不进**访问互联网
+- 用途：下载更新、拉依赖、访问外部 API
+- **AWS 托管**（相比 NAT Instance 更省心）
+
+🧠 口诀：
+
+- **IGW = 公网进出**（给 Public Subnet）
+- **NAT = 私网只出**（Private Subnet 出网）
+
+------
+
+## 4) NAT Gateway vs NAT Instance（CCP 只需记住结论）
+
+- **NAT Gateway**：托管、高可用、自动扩展（更推荐）
+- **NAT Instance**：你自己维护（要打补丁/做故障切换），更麻烦
+
+题目一般问：“哪个更简单/托管/高可用？” → **NAT Gateway**
+
+------
+
+## 5) Security Group vs NACL（防火墙必考点）
+
+|          | Security Group               | NACL                              |
+| -------- | ---------------------------- | --------------------------------- |
+| 作用层级 | **实例/ENI**                 | **子网**                          |
+| 规则类型 | **只允许 ALLOW**             | **ALLOW + DENY**                  |
+| 状态     | **Stateful**（回包自动放行） | **Stateless**（回包也要显式允许） |
+| 规则评估 | 所有规则一起评估             | 按规则编号顺序匹配                |
+
+🧠 秒选：
+
+- “需要 DENY 规则/子网级控制” → **NACL**
+- “只想控制某台 EC2 的入站出站” → **Security Group**
+
+------
+
+## 6) VPC Flow Logs（排障神器）
+
+- 记录 IP 流量到：
+  - VPC / Subnet / ENI 级别
+- 用于排查：
+  - 子网到互联网是否通
+  - 子网之间是否通
+  - 公网到子网是否通
+- 日志可送到 **CloudWatch Logs 或 S3**
+- 还能记录一些 AWS 托管接口流量（如 ELB/RDS 等相关接口）
+
+题干： “troubleshoot connectivity” → **Flow Logs**
+
+------
+
+## 7) VPC Peering（两套 VPC 私网互通）
+
+- 两个 VPC 私网直连，不走公网
+- 可跨账号
+- **CIDR 不能重叠**（必考）
+- CCP 常见隐藏点：**非传递（non-transitive）**
+  也就是 A↔B，B↔C，不代表 A↔C 自动通
+
+------
+
+## 8) VPC Endpoints（私网访问 AWS 服务）
+
+> 目的：**不经过公网**访问 AWS 服务（更安全、延迟更低）
+
+两类（必背）
+
+- **Gateway Endpoint**：只给 **S3 & DynamoDB**
+- **Interface Endpoint**：其他大多数服务（本质是私网 ENI）
+
+🧠 秒选：
+
+- “private access S3 without internet” → **Gateway Endpoint**
+
+------
+
+## 9) On-Prem 连接：VPN vs Direct Connect（常考对比）
+
+### Site-to-Site VPN
+
+- **走公网**，但**加密**
+- 组件：本地 **CGW** + AWS **VGW**
+- 建立快、成本低
+
+### Direct Connect
+
+- **物理专线**，更稳定更快
+- 私网链路
+- 建立慢（通常要更久）
+
+🧠 口诀：
+
+- **VPN：快上、走公网、加密**
+- **DX：专线、稳定快、部署慢**
+
+------
+
+## 10) Transit Gateway（大规模互联）
+
+- 统一的“网络枢纽路由器”
+- 适合：
+  - 连接 **成百上千 VPC**
+  - 连接 VPC + on-prem
+- 典型架构：hub-and-spoke
+
+题干： “many VPCs / centralized routing” → **Transit Gateway**
+
+------
+
+## 本章 10 分钟速记卡（直接背）
+
+- VPC=私网（Region）；Subnet=分区（AZ）；Route Table 决定路由
+- IGW：Public 子网上网/被公网访问
+- NAT Gateway：Private 子网出网（只出不进）
+- SG：实例级、只 ALLOW、stateful
+- NACL：子网级、ALLOW+DENY、stateless
+- Flow Logs：查网络流量/排障（送 CW Logs 或 S3）
+- Peering：VPC 私连，CIDR 不重叠，非传递
+- Endpoints：私网访问 AWS；Gateway=S3+DynamoDB，Interface=其他
+- VPN：公网加密（CGW+VGW）；DX：专线私网更稳更快
+- Transit Gateway：大规模 VPC/on-prem 中心互联
+
+------
+
+如果你想把 VPC 这章变成“见题秒选”，我可以给你出 **15 道 CCP 高频场景题**（重点：IGW vs NAT、SG vs NACL、Endpoint 类型、VPN vs DX、Peering vs Transit Gateway）。
+
+# Other AWS Services
+
+这一章在 CCP 的作用：
+
+> **不要求你会配置**，主要考你“看到场景能认出服务名字”。
+> 所以最有效的学习方式：**每个服务记 1 句话 + 3 个关键词 + 常见对比**。
+
+------
+
+## 1) 一页速记：场景 → 秒选服务
+
+| 题干场景关键词                                   | 秒选                                    |
+| ------------------------------------------------ | --------------------------------------- |
+| 给员工提供云桌面（VDI），Windows/Linux 桌面      | **WorkSpaces**                          |
+| 只在浏览器里“流式”运行桌面应用（不提供完整桌面） | **AppStream 2.0**                       |
+| 做 VR/AR/3D Web 应用                             | **Sumerian**                            |
+| 连接/管理 IoT 设备安全上云                       | **IoT Core**                            |
+| 把 S3 视频转码成手机可播放格式                   | **Elastic Transcoder**                  |
+| GraphQL + 实时同步 + 离线同步（移动/Web）        | **AppSync**                             |
+| 快速做全栈 Web/移动端（BaaS + 前端库 + CI/CD）   | **Amplify**                             |
+| 真机/真实浏览器自动化测试（多设备并发）          | **Device Farm**                         |
+| 集中式跨服务备份（计划/保留/跨区/跨账号）        | **AWS Backup**                          |
+| 灾备：持续块级复制，快速恢复到 AWS               | **Elastic Disaster Recovery (DRS)**     |
+| 大量数据从本地同步到 S3/EFS/FSx（增量+定时）     | **DataSync**                            |
+| 迁移前“盘点本地服务器/依赖关系”                  | **Application Discovery Service**       |
+| Lift-and-shift 迁移服务器到 AWS（最小停机）      | **Application Migration Service (MGN)** |
+| 做迁移商业评估/成本基线/迁移计划商业论证         | **Migration Evaluator**                 |
+| 统一看迁移进度与工具状态（迁移控制台）           | **Migration Hub**                       |
+| 混沌工程：注入故障做演练                         | **Fault Injection Simulator (FIS)**     |
+| 编排 Lambda 工作流（可视化、并行、重试）         | **Step Functions**                      |
+| 卫星地面站通信与数据下传到 AWS                   | **Ground Station**                      |
+| 做营销活动：分群+模板+短信/邮件/推送/双向        | **Pinpoint**                            |
+
+------
+
+## 2) 各服务“1 句话 + 关键词”（CCP 够用）
+
+### WorkSpaces（云桌面）
+
+- **一句话**：托管 VDI 桌面（Windows/Linux），给员工一台“云电脑”
+- 关键词：**Desktop-as-a-Service / VDI / per-hour or monthly**
+
+### AppStream 2.0（应用流式）
+
+- **一句话**：把**桌面应用**流式到浏览器（不用完整云桌面）
+- 关键词：**application streaming / browser / per-app instance type**
+
+✅ 高频对比：
+
+- **WorkSpaces = 整个桌面**
+- **AppStream = 只流式一个应用到浏览器**
+
+------
+
+### Sumerian（VR/AR/3D）
+
+- **一句话**：快速做 VR/AR/3D 应用（偏内容与体验）
+- 关键词：**VR / AR / 3D**
+
+------
+
+### AWS IoT Core（物联网）
+
+- **一句话**：安全、可扩展地把 IoT 设备接入 AWS，并与云端服务联动
+- 关键词：**devices / secure / serverless-ish integration**
+
+------
+
+### Elastic Transcoder（转码）
+
+- **一句话**：把 S3 里的媒体文件转成不同设备可播放格式
+- 关键词：**media transcoding / input S3 / output formats**
+
+------
+
+### AppSync（GraphQL 实时数据）
+
+- **一句话**：GraphQL API + 实时订阅 + 离线同步（移动/网页数据同步）
+- 关键词：**GraphQL / real-time / offline sync**
+
+------
+
+### Amplify（全栈开发平台）
+
+- **一句话**：帮你快速搭建并部署全栈 Web/移动应用（前端库 + 后端托管 + CI/CD）
+- 关键词：**full-stack / BaaS / CI-CD**
+- 常见关系：**Amplify 常在后台用 AppSync**
+
+------
+
+### Device Farm（真机测试）
+
+- **一句话**：在真实手机/平板/浏览器上并发跑自动化测试
+- 关键词：**real devices / cross-browser / parallel tests**
+
+------
+
+### AWS Backup（统一备份）
+
+- **一句话**：集中管理 AWS 各类资源备份（计划、保留、跨区/跨账号）
+- 关键词：**centralized backup / retention / cross-region**
+
+------
+
+### Elastic Disaster Recovery DRS（灾备）
+
+- **一句话**：把服务器做持续块级复制，出事可快速在 AWS 恢复
+- 关键词：**disaster recovery / continuous replication / fast recovery**
+
+------
+
+### DataSync（数据同步搬迁）
+
+- **一句话**：把大量数据从本地/其他存储同步到 S3/EFS/FSx（支持定时+增量）
+- 关键词：**on-prem to AWS / scheduled / incremental**
+
+------
+
+### Application Discovery Service（迁移盘点）
+
+- **一句话**：收集本地服务器清单、利用率、依赖关系，辅助迁移规划
+- 关键词：**inventory / dependency mapping / discovery**
+
+------
+
+### Application Migration Service MGN（Lift-and-shift）
+
+- **一句话**：把现有服务器“原样搬上云”（rehost），停机更少
+- 关键词：**lift-and-shift / rehost / minimal downtime**
+
+------
+
+### Migration Evaluator（迁移商业评估）
+
+- **一句话**：做迁移商业论证：现状基线、目标状态、成本与计划
+- 关键词：**business case / baseline / planning**
+
+------
+
+### Migration Hub（迁移总控台）
+
+- **一句话**：集中查看迁移资产与迁移进度（整合 MGN/DMS 等状态）
+- 关键词：**central dashboard / tracking / orchestration templates**
+
+------
+
+### Fault Injection Simulator FIS（混沌工程）
+
+- **一句话**：对 AWS 工作负载注入故障做演练，找隐藏问题
+- 关键词：**chaos engineering / inject faults / experiments**
+
+------
+
+### Step Functions（工作流编排）
+
+- **一句话**：把多个步骤（常见是多个 Lambda）编排成可视化工作流（重试/并行/分支）
+- 关键词：**orchestration / workflow / retries & parallel**
+
+------
+
+### Ground Station（卫星）
+
+- **一句话**：管理卫星地面站通信，把卫星数据快速送进 AWS
+- 关键词：**satellite / ground stations / ingest to AWS**
+
+------
+
+### Pinpoint（营销活动）
+
+- **一句话**：做大规模营销/通知活动：分群、模板、计划、双向消息
+- 关键词：**campaigns / segmentation / SMS-email-push**
+- 对比点：SNS/SES 更偏“发消息”；Pinpoint 更偏“做活动和人群运营”。
+
+------
+
+## 3) 本章最常考的 3 个对比（必背）
+
+1. **WorkSpaces vs AppStream**：桌面 vs 应用流式
+2. **AppSync vs API Gateway**：GraphQL+实时+离线 vs 通用 API（REST/HTTP）
+3. **Backup vs DRS vs DataSync**：
+   - Backup：备份与保留策略
+   - DRS：灾备快速恢复（复制）
+   - DataSync：数据搬运/同步（迁移数据）
+
+------
+
+## 4) 10 分钟速记卡
+
+- WorkSpaces=云桌面；AppStream=浏览器流式应用
+- AppSync=GraphQL 实时&离线；Amplify=全栈开发+部署平台
+- Device Farm=真机测试；Elastic Transcoder=媒体转码
+- Backup=集中备份；DRS=灾备恢复；DataSync=数据同步搬迁
+- Discovery=迁移盘点；MGN=lift-and-shift；Migration Hub=迁移总控
+- FIS=混沌故障注入；Step Functions=工作流编排
+- Ground Station=卫星；Pinpoint=营销活动
+
+------
+
+如果你下一步想巩固记忆，我可以直接给你做一套 **“30 题闪卡式选择题”**（每题一句场景，5 秒内秒选服务）。
